@@ -1,0 +1,34 @@
+- Un seul paquet usuel de 52 cartes est utilisé.
+   -> As plus petite valeur jusqu'au Roi
+- Toutes les cartes sont distribuées et visibles dès le départ.
+- Cartes disposées dans des colonnes qui se manipulent comme des piles.
+- Un dépot sert à ranger mes cartes en position final par couleur et par ordre croissant.
+   -> 4 piles initialement vides (une par couleur).
+- Solitaire affichent les colonnes avec leurs sommets de pile vers le bas.
+
+
+TODO : 
+    1- Lire une partie, par exemple 'FreeCell.123456' et en déduire la configuration initiale de la partie en question.
+      puis afficher la configuration initiale de la partie en question.
+    2- Déduire une permutation de la graine avec 'XpatRandom.shuffle' dans 'XpatRandom.ml'
+       |-> Pas complet : I.3
+    3- Une fois la permutation récupérée, les cartes de cette permutation sont à placer
+       successivement dans les colonnes, de la première à la dernière, du fond de la colonne
+       à son sommet. Le nombre de cartes par colonne est décrit dans les règles du jeu.
+
+    Configuration de jeu :
+        - le dépot
+        - les colonnes
+        - les registres temporaires
+        - un historique des coups qui ont amené à cet état (A IGNORER POUR L'INSTANT)
+
+    - Les cartes sont représentés par le type Card.card (voir Card.ml).
+      |-> Deux fonctions fournies 'Card.of_num' et 'Card.to_num'
+          |-> Permettent de convertir un entier (0 à 51) en une carte et vice-versa.
+      |-> La représentation de l'état est libre.
+
+    - Dépot n'a pas besoin de stocker de veritables cartes.
+      |-> Il suffit de connaitre le nombre de carte déjà placées dans le dépot.
+    - Colonne = liste OCaml
+    - Regrouper les colonnes : tableau de liste.
+    
