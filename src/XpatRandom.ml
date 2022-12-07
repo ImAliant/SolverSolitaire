@@ -92,7 +92,12 @@ let shuffle n =
    let f2_init = Fifo.of_list (Array.to_list first24_snd_components) in
 
    (* c) Tirage *)
-   let tirage = "TODO" in
+   let tirage = function
+      | (f1,f2) ->
+         let n1 = Fifo.pop f1 in
+         let n2 = Fifo.pop f2 in
+         let d = if n1 >= n2 then n1 - n2 else n1 - n2 + randmax in
+         (d, (Fifo.push f1 n2, Fifo.push f2 d))
       
 
    (* d) Mélange *)
