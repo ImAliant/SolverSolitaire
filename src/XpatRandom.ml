@@ -6,8 +6,6 @@
     (hence without duplicates).
 
 *)
-open Fifo;
-open Array;
 
 (* The numbers manipulated below will be in [0..randmax[ *)
 let randmax = 1_000_000_000
@@ -16,6 +14,59 @@ let randmax = 1_000_000_000
 let reduce n limit =
   Int.(of_float (to_float n /. to_float randmax *. to_float limit))
 
+(*
+
+a) Créer tout d'abord les 55 premières paires suivantes:
+  * premières composantes : 0 pour la premiere paire,
+    puis ajouter 21 modulo 55 à chaque fois
+  * secondes composantes : graine, puis 1, puis les "différences"
+    successives entre les deux dernières secondes composantes.
+    Par "différence" entre a et b on entend
+      - Ou bien (a-b) si b<=a
+      - Ou bien (a-b+randmax) si a<b
+
+b) Trier ces 55 paires par ordre croissant selon leurs premières composantes,
+   puis séparer entre les 24 premières paires et les 31 suivantes.
+   Pour les 31 paires, leurs secondes composantes sont à mettre dans
+   une FIFO f1_init, dans cet ordre (voir `Fifo.of_list` documenté dans
+   `Fifo.mli`). De même pour les 24 paires, leurs secondes composantes sont
+   à mettre dans une FIFO f2_init, dans cet ordre.
+
+c) Un *tirage* à partir de deux FIFO (f1,f2) consiste à prendre
+   leurs premières valeurs respectives n1 et n2 (cf `Fifo.pop`),
+   puis calculer la "différence" de n1 et n2 (comme auparavant),
+   nommons-la d. Ce d est alors le résultat du tirage, associé
+   à deux nouvelles FIFO constituées des restes des anciennes FIFO
+   auxquelles on a rajouté respectivement n2 et d (cf `Fifo.push`).
+
+d) On commence alors par faire 165 tirages successifs en partant
+   de (f1_init,f2_init). Ces tirages servent juste à mélanger encore
+   les FIFO qui nous servent d'état de notre générateur pseudo-aléatoire,
+   les entiers issus de ces 165 premiers tirages ne sont pas considérés.
+
+e) La fonction de tirage vue précédemment produit un entier dans
+   [0..randmax[. Pour en déduire un entier dans [0..limit[ (ou limit est
+   un entier positif quelconque), on utilisera alors la fonction `reduce`
+   fournie plus haut.
+   Les tirages suivants nous servent à créer la permutation voulue des
+   52 cartes. On commence avec une liste des nombres successifs entre 0 et 51.
+   Un tirage dans [0..52[ nous donne alors la position du dernier nombre
+   à mettre dans notre permutation. On enlève alors le nombre à cette position
+   dans la liste. Puis un tirage dans [0..51[ nous donne la position
+   (dans la liste restante) de l'avant-dernier nombre de notre permutation.
+   On continue ainsi à tirer des positions valides dans la liste résiduelle,
+   puis à retirer les nombres à ces positions tirées pour les ajouter devant
+   la permutation, jusqu'à épuisement de la liste. Le dernier nombre retiré
+   de la liste donne donc la tête de la permutation.
+
+   NB: /!\ la version initiale de ce commentaire donnait par erreur
+   la permutation dans l'ordre inverse).
+
+Un exemple complet de génération d'une permutation (pour la graine 1)
+est maintenant donné dans le fichier XpatRandomExemple.ml, étape par étape.
+
+*)
+
 
 (* For now, we provide a shuffle function that can handle a few examples.
    This can be kept later for testing your implementation. *)
@@ -23,30 +74,30 @@ let reduce n limit =
 let shuffle n = 
    (* a) Les 55 paires *)
    let diff a b = if a >= b then a - b else a - b + randmax in
-   let paires = Array.init 55 (fun i -> ((i+21) mod 55, if i = 0 or i = 1 then 1 else diff (snd paires.(i-2)) (snd paires.(i-1)))) in
+   let paires = 
+      let rec aux i acc =
+         if i = 55 then acc
+         else aux (i+1) (((i*21 mod 55),(if i = 0 || i = 1 then 1 else diff (snd (List.nth (acc) (i-2)))(snd (List.nth (acc) (i-1)))))::acc)
+      in List.rev (aux 0 [])
+   in
+   let paires_array = Array.of_list paires in
+   
    (* b) Tri des paires *)
-   let paires_trie = Array.sort (fun (a,_) (b,_) -> compare (a b) >= 0) paires in
-   let first24 = Array.sub paires_trie 0 24 in
-   let last31 = Array.sub paires_trie 24 31 in
+   Array.sort (fun (a,_) (b,_) -> compare a b) paires_array;
+   let first24 = Array.sub paires_array 0 24 in
+   let last31 = Array.sub paires_array 24 31 in
    let last31_snd_components = Array.map snd last31 in
    let first24_snd_components = Array.map snd first24 in
    let f1_init = Fifo.of_list (Array.to_list last31_snd_components) in
    let f2_init = Fifo.of_list (Array.to_list first24_snd_components) in
 
    (* c) Tirage *)
-   let tirage f1 f2 =
-      let n1 = Fifo.pop f1_init in
-      let n2 = Fifo.pop f2_init in
-      let d = diff n1 n2 in
-      let f1 = Fifo.push f1_init n2 in
-      let f2 = Fifo.push f2_init d in
+   let tirage = "TODO" in
+      
 
    (* d) Mélange *)
    (* 165 tirages successifs en partant de (f1_init, f2_init)*)
-   let rec tirages f1 f2 n =
-      if n = 0 then (f1, f2)
-      else tirages (tirage f1 f2) (n-1)
-   in tirages f1_init f2_init 165
+   let ignored_165 = "TODO" in
 
    (* e ) On commence avec une liste des nombres succesifs entre 0 et 51.
           Un tirage dans [0..52[ nous donne alors la position du dernier 
@@ -55,10 +106,9 @@ let shuffle n =
           donne la position (dans la liste restante) de l'avant dernier nombre
           de notre permutation. 
    *)
-   
+   let tirages_52 = "TODO" in
 
-
-let shuffle_test = function
+(* let shuffle_test = function
   | 1 ->
      [13;32;33;35;30;46;7;29;9;48;38;36;51;41;26;20;23;43;27;
       42;4;21;37;39;2;15;34;28;25;17;16;18;31;3;0;10;50;49;
@@ -104,4 +154,4 @@ let shuffle_test = function
       46;10;25;35;39;48;51;40;33;13;42;16;32;50;24;47;26;6;34;
       45;5;3;41;15;12;31;17;28;8;29;30;37]
   | _ -> failwith "shuffle : unsupported number (TODO)"
-  in shuffle_test randmax
+  in shuffle_test randmax *)
