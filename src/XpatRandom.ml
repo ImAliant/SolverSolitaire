@@ -92,17 +92,25 @@ let shuffle n =
    let f2_init = Fifo.of_list (Array.to_list first24_snd_components) in
 
    (* c) Tirage *)
-   let tirage = function
-      | (f1,f2) ->
-         let n1 = Fifo.pop f1 in
-         let n2 = Fifo.pop f2 in
-         let d = if n1 >= n2 then n1 - n2 else n1 - n2 + randmax in
-         (d, (Fifo.push f1 n2, Fifo.push f2 d))
-      
+   let tirage f1 f2 =
+      let n1 = fst (Fifo.pop f1) in
+      let n2 = fst (Fifo.pop f2) in
+      let d = diff n1 n2 in
+
+      let f1' = Fifo.push n2 f1 in
+      let f2' = Fifo.push d f2 in
+
+      (f1', f2')
+   in
 
    (* d) Mélange *)
    (* 165 tirages successifs en partant de (f1_init, f2_init)*)
-   let ignored_165 = "TODO" in
+   let fifo_ignored_165 = 
+      let rec aux i f1 f2 =
+         if i = 165 then f1, f2
+         else let f1', f2' = tirage f1 f2 in aux (i+1) f1' f2'
+      in aux 0 f1_init f2_init
+   in
 
    (* e ) On commence avec une liste des nombres succesifs entre 0 et 51.
           Un tirage dans [0..52[ nous donne alors la position du dernier 
@@ -113,7 +121,7 @@ let shuffle n =
    *)
    let tirages_52 = "TODO" in
 
-(* let shuffle_test = function
+let shuffle_test = function
   | 1 ->
      [13;32;33;35;30;46;7;29;9;48;38;36;51;41;26;20;23;43;27;
       42;4;21;37;39;2;15;34;28;25;17;16;18;31;3;0;10;50;49;
@@ -159,4 +167,6 @@ let shuffle n =
       46;10;25;35;39;48;51;40;33;13;42;16;32;50;24;47;26;6;34;
       45;5;3;41;15;12;31;17;28;8;29;30;37]
   | _ -> failwith "shuffle : unsupported number (TODO)"
-  in shuffle_test randmax *)
+  in shuffle_test randmax 
+
+  
