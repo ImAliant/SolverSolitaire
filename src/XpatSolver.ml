@@ -369,32 +369,31 @@ let read_sol_file filename =
   | "SUCCES" -> print_string "SUCCES" ; exit 0
   | _ -> print_string res ; exit 1;;
 
-
+let find_sol filename = "TODO";;
+  
 let treat_game conf =
   let permut = XpatRandom.shuffle conf.seed in
   match conf.game with
-  | Freecell -> (*print_string "\nConstruction de la partie FreeCell:\n";*)
-                let freeCell = construct_FreeCell 0 0 permut (Array.init 8 (fun _ -> [|0|])) in
+  | Freecell -> let freeCell = construct_FreeCell 0 0 permut (Array.init 8 (fun _ -> [|0|])) in
                 colonnes := Array.map (fun x -> Array.map (fun y -> Card.of_num y) x) freeCell;
-                (*Array.iter (fun x -> Array.iter (fun y -> print_string (Card.to_string y^" ")) x; print_newline ()) !colonnes;*)
-  | Seahaven -> (*print_string "\nConstruction de la partie Seahaven:\n";*)
-                let seahaven = construct_Seahaven 0 0 permut (Array.init 10 (fun _ -> [|0|])) in
+  | Seahaven -> let seahaven = construct_Seahaven 0 0 permut (Array.init 10 (fun _ -> [|0|])) in
                 colonnes := Array.map (fun x -> Array.map (fun y -> Card.of_num y) x) (fst seahaven);
                 Array.set !registre 0 [|Card.of_num (fst (snd seahaven))|];
                 Array.set !registre 1 [|Card.of_num (snd (snd seahaven))|];
                 Array.set !registre 2 [||];
                 Array.set !registre 3 [||];
-                (*Array.iter (fun x -> Array.iter (fun y -> print_string (Card.to_string y^" ")) x; print_newline ()) !colonnes;*)
 
-  | Midnight -> (*print_string "\nConstruction de la partie Midnight:\n";*)
-                let midnight = construct_MidnightOil 0 0 permut (Array.init 18 (fun _ -> [|0|])) in
+  | Midnight -> let midnight = construct_MidnightOil 0 0 permut (Array.init 18 (fun _ -> [|0|])) in
                 colonnes := Array.map (fun x -> Array.map (fun y -> Card.of_num y) x) midnight;
-                (*Array.iter (fun x -> Array.iter (fun y -> print_string (Card.to_string y^" ")) x; print_newline ()) !colonnes;*)
 
-  | Baker ->    (*print_string "\nConstruction de la partie Baker:\n";*)
-                let baker = construct_BakersDozen 0 0 permut (Array.init 13 (fun _ -> [|0|])) in
-                colonnes := Array.map (fun x -> Array.map (fun y -> Card.of_num y) x) baker;;
-                (*Array.iter (fun x -> Array.iter (fun y -> print_string (Card.to_string y^" ")) x; print_newline ()) !colonnes;*)
+  | Baker ->  let baker = construct_BakersDozen 0 0 permut (Array.init 13 (fun _ -> [|0|])) in
+              colonnes := Array.map (fun x -> Array.map (fun y -> Card.of_num y) x) baker;;
+
+let check (filename : string) = 
+  read_sol_file filename;;
+
+let search (filename : string) =
+  find_sol filename;;
   
 let filename mode = 
   match mode with
@@ -414,10 +413,12 @@ let main () =
   set_game_seed Sys.argv.(1);
   treat_game config;
 
-  (*Array.iter (fun x -> Array.iter (fun y -> print_string (Card.to_string y^" ")) x; print_newline ()) !colonnes;
-  print_string "----------\n";
-  Array.iter (fun x -> Array.iter (fun y -> print_string (Card.to_string y^" ")) x; print_newline ()) !registre;;*)
-
-  print_string (read_sol_file (filename config.mode));;
+  (* Si l'argument est -check on utilise la fonction check *)
+  if config.mode = Check "" then print_string "No file to check"
+  else if config.mode = Search "" then print_string "No file to search"
+  else 
+    match config.mode with
+    | Check filename -> print_string (check filename)
+    | Search filename -> print_string (search filename)
 
 let _ = if not !Sys.interactive then main () else ()
