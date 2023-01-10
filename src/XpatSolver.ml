@@ -1,6 +1,20 @@
 
 open XpatLib
 
+type state = { mutable colonnes : Card.card array array; mutable registre : Card.card array array; mutable depot : int array;}
+
+let compare_states (s1 : state) (s2 : state) =
+  (* On compare les deux registre avec Stdlib.compare *)
+  let registre1 = s1.registre in
+  let registre2 = s2.registre in
+  if Stdlib.compare registre1 registre2 = 0 then
+    let colonnes1 = s1.colonnes in
+    let colonnes2 = s2.colonnes in
+    Stdlib.compare colonnes1 colonnes2
+  else 1;;
+
+module States = Set.Make (struct type t = state let compare = compare_states end)
+
 type game = Freecell | Seahaven | Midnight | Baker
 
 type mode =
@@ -104,13 +118,86 @@ let find_col array card =
         if n = colonnes_length then colonnes_length
         else
           let col_length = length_array !array.(n) in
-          let pos = ref (col_length - 1) in
-          if !colonnes.(n).(!pos) = card then n
-          else loop1 (n+1)
+          if col_length = 0 then loop1 (n+1)
+          else
+            let pos = ref (col_length - 1) in
+            if !colonnes.(n).(!pos) = card then n
+            else loop1 (n+1)
     in
     loop1 0 
 
-let move_card col_card col_dest =
+let find_reg array card =
+  let registres_length = length_array !array in
+  let rec loop n =
+    match n with
+    | n -> 
+        if n = registres_length then registres_length
+        else 
+          let reg_length = length_array !array.(n) in
+          if reg_length = 0 then loop (n+1)
+          else 
+            let pos = ref (reg_length - 1) in
+            if !array.(n).(!pos) = card then n
+            else loop (n+1)
+  in loop 0
+
+let remove_card_from_registre (card : Card.card) = 
+  (*On cherche la carte dans les registres*)
+  let registres_length = 4 in
+  let rec loop n =
+    match n with
+    | n -> 
+        if n = registres_length then registres_length
+        else 
+          let reg_length = length_array !registre.(n) in
+          if reg_length = 0 then loop (n+1)
+          else
+            let pos = ref (reg_length - 1) in
+            if !registre.(n).(!pos) = card then n
+            else loop (n+1)
+  in 
+  let reg_card = loop 0 in
+  if reg_card = length_array !registre then ()
+  else
+    let reg_card_length = length_array !registre.(reg_card) in
+    let pos_card = ref (reg_card_length - 1) in
+    let new_reg_card = Array.sub !registre.(reg_card) 0 (!pos_card) in
+    Array.set !registre reg_card new_reg_card
+
+let remove_card (card : Card.card) = 
+  (* On affiche la carte *) 
+  let col_card = find_col colonnes card in 
+  if col_card = length_array !colonnes then remove_card_from_registre card
+  else
+    let col_card_length = length_array !colonnes.(col_card) in 
+    let pos_card = ref (col_card_length - 1) in 
+    let new_col_card = Array.sub !colonnes.(col_card) 0 (!pos_card) in 
+    Array.set !colonnes col_card new_col_card;;
+
+let move_to_depot (card : Card.card) = 
+  let num = num card in
+  let suit = suit card in
+  (*Si le num est égale a la valeur + 1 du depot correspondant on incremente la case de depot*)
+  if num = !depot.(Card.num_of_suit (match card with (_, s) -> s)) + 1 then remove_card card
+  else ();
+  Array.set !depot (Card.num_of_suit (match card with (_, s) -> s)) (num)
+  
+let move_card_registre_to_colonne reg_card col_dest = 
+  (*On deplace la carte card sur la dest*)
+  (*On retire la carte card de son registre*)
+  let pos_card = ref (0) in
+  let card = !registre.(reg_card).(!pos_card) in
+  remove_card_from_registre card;
+  (*On ajoute la carte card au a la colonne de dest*)
+  let col_dest_length = length_array !colonnes.(col_dest) in
+  let pos_dest = ref (col_dest_length - 1) in
+  let new_col_dest = Array.make (col_dest_length + 1) card in
+  Array.blit !colonnes.(col_dest) 0 new_col_dest 0 (col_dest_length);
+  Array.set !colonnes col_dest new_col_dest;
+  "SUCCES";;
+
+
+let move_card_col_to_col col_card col_dest =
   (* On deplace la carte card sur la carte dest *)
   (* On retire la carte card de sa colonne *)
   let col_card_length = length_array !colonnes.(col_card) in
@@ -132,19 +219,22 @@ let move_to_col_freecell (card_num : int) (dest_num : int) n =
   let card_of_card_num = Card.of_num card_num in
   let card_of_dest_num = Card.of_num dest_num in
 
+  print_string ("test0\n");
   if is_same_color card_of_card_num card_of_dest_num || num card_of_card_num <> num card_of_dest_num - 1 then "ECHEC "^string_of_int n
   else
     (* On cherche la colonne où se trouve la carte card. Elle doit être la dernière carte de sa colonne *)
     let col_card = find_col colonnes card_of_card_num in
+    let reg_card = find_reg registre card_of_card_num in
 
     (* On cherche la colonne où se trouve la carte dest. Elle doit être la dernière carte de sa colonne *)
     let col_dest = find_col colonnes card_of_dest_num in
 
     (* Si col_dest = colonnes_length -> ECHEC *)
     let colonnes_length = length_array !colonnes in
-    if col_dest = colonnes_length || col_card = colonnes_length then "ECHEC "^string_of_int n
+    if col_dest = colonnes_length || (col_card = colonnes_length && reg_card = 4) then "ECHEC "^string_of_int n
     else
-      move_card col_card col_dest;;
+      if (col_card = colonnes_length && reg_card <> 4) then move_card_registre_to_colonne reg_card col_dest
+      else move_card_col_to_col col_card col_dest;;
 
 let move_to_col_seahaven (card_num : int) (dest_num : int) n = 
   let card_of_card_num = Card.of_num card_num in
@@ -154,14 +244,16 @@ let move_to_col_seahaven (card_num : int) (dest_num : int) n =
   else
     (* On cherche la colonne où se trouve la carte card. Elle doit être la dernière carte de sa colonne *)
     let col_card = find_col colonnes card_of_card_num in
+    let reg_card = find_reg registre card_of_card_num in
    
     (* On cherche la colonne où se trouve la carte dest. Elle doit être la dernière carte de sa colonne *)
     let col_dest = find_col colonnes card_of_dest_num in
 
     let colonnes_length = length_array !colonnes in
-    if col_dest = colonnes_length || col_card = colonnes_length then "ECHEC "^string_of_int n
+    if col_dest = colonnes_length || (col_card = colonnes_length && reg_card = 4) then "ECHEC "^string_of_int n
     else 
-      move_card col_card col_dest;;
+      if (col_card = colonnes_length && reg_card <> 4) then move_card_registre_to_colonne reg_card col_dest
+      else move_card_col_to_col col_card col_dest;;
 
 let move_to_col_midnight (card_num : int) (dest_num : int) n = 
   let card_of_card_num = Card.of_num card_num in
@@ -178,7 +270,7 @@ let move_to_col_midnight (card_num : int) (dest_num : int) n =
     let colonnes_length = length_array !colonnes in
     if col_dest = colonnes_length || col_card = colonnes_length then "ECHEC "^string_of_int n
     else 
-      move_card col_card col_dest;;
+      move_card_col_to_col col_card col_dest;;
 
 let move_to_col_baker (card_num : int) (dest_num : int) n = 
   let card_of_card_num = Card.of_num card_num in
@@ -195,7 +287,7 @@ let move_to_col_baker (card_num : int) (dest_num : int) n =
     let colonnes_length = length_array !colonnes in
     if col_dest = colonnes_length || col_card = colonnes_length then "ECHEC "^string_of_int n
     else 
-      move_card col_card col_dest;;
+      move_card_col_to_col col_card col_dest;;
 
 let find_empty_col colonnes =
   let colonnes_length = length_array !colonnes in
@@ -318,12 +410,59 @@ let move_to_registre (card_num : int) game (n : int) =
   | Midnight -> "Impossible de déplacer une carte dans un registre dans Midnight:\n ECHEC "^string_of_int n
   | Baker -> "Impossible de déplacer une carte dans un registre dans Baker:\n ECHEC "^string_of_int n
   
+let card_suit_to_depot card = 
+  let card_suit = suit card in
+  let card_num = num card in
+  match card_suit with
+  | "Trefle" -> if card_num = !depot.(0)+1 then true else false
+  | "Pique" -> if card_num = !depot.(1)+1 then true else false
+  | "Coeur" -> if card_num = !depot.(2)+1 then true else false
+  | "Carreau" -> if card_num = !depot.(3)+1 then true else false
+  | _ -> false;;
+
+let normalisation () = 
+  let colonnes_length = length_array !colonnes in
+  let rec loop n = 
+    match n with
+    | n -> 
+        if n = colonnes_length then ()
+        else 
+          let col_length = length_array !colonnes.(n) in
+          if col_length = 0 then loop (n+1)
+          else 
+            let card = !colonnes.(n).(col_length - 1) in
+            let res = card_suit_to_depot card in
+            if res then move_to_depot card
+            else ();
+            if res then loop 0
+            else ();
+            loop (n+1);
+  in loop 0;
+  let registres_length = 4 in
+  let rec loop n = 
+    match n with
+    | n -> 
+        if n = registres_length then ()
+        else 
+          let reg_length = length_array !registre.(n) in
+          if reg_length = 1 then
+            let card = !registre.(n).(0) in
+            let res = card_suit_to_depot card in
+            if res then move_to_depot card
+            else ();
+            if res then loop 0
+            else ();
+            loop (n+1);
+          else loop (n+1);
+  in loop 0;;
+
 let move (card_num : int) (dest_num : int) game (n : int) = 
   match dest_num with
   | _ -> if dest_num = -1 then move_to_empty_col card_num game n
          else if dest_num = -2 then move_to_registre card_num game n
          else move_to_col card_num dest_num game n;;
-
+  
+    
 (* teste les coup donnée dans le fichier *)
 (* card_num : correspond a la carte a deplacer.
       c'est un nombre entier de 0 à 51 *)
@@ -347,30 +486,27 @@ let check_move_sol card dest game n =
 let read_sol_file filename = 
   let ic = open_in filename in
   let bool = ref false in
-  let rec loop () n = 
+  let rec loop n = 
     try
       bool := true;
-      (*Array.iter (fun x -> Array.iter (fun y -> print_string (Card.to_string y^" ")) x; print_newline ()) !colonnes;
-      print_string "----------\n";
-      Array.iter (fun x -> Array.iter (fun y -> print_string (Card.to_string y^" ")) x; print_newline ()) !registre;*)
+      normalisation ();
       let line = input_line ic in
       (* Le formatage dans les fichiers sur chaque ligne est %s %s*)
       let (card, dest) = Scanf.sscanf line "%s %s" (fun card dest -> (card, dest)) in
       let res = check_move_sol card dest config.game n in
+      normalisation ();
       if res = "ECHEC "^string_of_int n then 
         "ECHEC "^string_of_int n
-      else loop () (n+1)
-    with End_of_file -> if !bool then "ECHEC "^string_of_int n else "SUCCES"
+      else loop (n+1)
+    with End_of_file -> normalisation(); if !bool then "ECHEC "^string_of_int n else "SUCCES"
   in
-  let res = loop () 1 in
+  let res = loop 1 in
+  normalisation ();
   close_in ic;
-  let res = res in
   match res with
   | "SUCCES" -> print_string "SUCCES" ; exit 0
   | _ -> print_string res ; exit 1;;
 
-let find_sol filename = "TODO";;
-  
 let treat_game conf =
   let permut = XpatRandom.shuffle conf.seed in
   match conf.game with
@@ -392,9 +528,6 @@ let treat_game conf =
 let check (filename : string) = 
   read_sol_file filename;;
 
-let search (filename : string) =
-  find_sol filename;;
-  
 let filename mode = 
   match mode with
   | Check filename -> filename
@@ -412,13 +545,12 @@ let main () =
 
   set_game_seed Sys.argv.(1);
   treat_game config;
-
-  (* Si l'argument est -check on utilise la fonction check *)
+  
   if config.mode = Check "" then print_string "No file to check"
   else if config.mode = Search "" then print_string "No file to search"
   else 
     match config.mode with
     | Check filename -> print_string (check filename)
-    | Search filename -> print_string (search filename)
+    | _ -> print_string "Not implemented yet";;
 
 let _ = if not !Sys.interactive then main () else ()
