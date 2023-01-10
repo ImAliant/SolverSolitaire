@@ -11,13 +11,13 @@ MANYIM Olivier, @manyim, 21959946
 
 # Compilation et exécution
 #### Compilation
-`make` pour compiler le projet
+`make` pour compiler le projet  
 `make clean` pour effacer le répertoire provisoire `_build` produit par `dune` lors de ses compilations.
 #### Execution
 `./run <game>.<seed> ([-check | -search] <path_to_filename>.sol)` pour executer le projet
 
 ##### Execution des tests
-`dune runtest tests\I` pour executer les tests de la partie I
+`dune runtest tests\I` pour executer les tests de la partie I  
 Les tests de la partie II n'ont pas a être executer car cette partie n'est pas implémenté.
 
 # Découpage modulaire
